@@ -1,0 +1,34 @@
+# PostgreSQL configuration for BGR5 API
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  username: <%= ENV.fetch("POSTGRES_USER") { "bgr5_user" } %>
+  password: <%= ENV.fetch("POSTGRES_PASSWORD") { "postgres" } %>
+  host: <%= ENV.fetch("DATABASE_HOST") { "35.200.15.8" } %>
+  port: <%= ENV.fetch("DATABASE_PORT") { 5432 } %>
+
+development:
+  <<: *default
+  database: bgr5_development
+
+test:
+  <<: *default
+  database: bgr5_test
+
+production:
+  <<: *default
+  url: <%= ENV['DATABASE_URL'] %>
+  database: bgr5_production
+  username: <%= ENV.fetch("POSTGRES_USER") { "bgr5_user" } %>
+  password: <%= ENV.fetch("POSTGRES_PASSWORD") { "postgres" } %>
+  host: <%= ENV.fetch("DATABASE_HOST") { "35.200.15.8" } %>
+  port: <%= ENV.fetch("DATABASE_PORT") { 5432 } %>
+
+cable:
+  <<: *default
+  database: bgr5_production
+  username: <%= ENV.fetch("POSTGRES_USER") { "bgr5_user" } %>
+  password: <%= ENV.fetch("POSTGRES_PASSWORD") { "postgres" } %>
+  host: <%= ENV.fetch("DATABASE_HOST") { "35.200.15.8" } %>
+  port: <%= ENV.fetch("DATABASE_PORT") { 5432 } %>

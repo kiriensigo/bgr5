@@ -1,0 +1,46 @@
+steps:
+  # Dockerコンテナのビルド
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "build"
+      - "-t"
+      - "gcr.io/$PROJECT_ID/bgr5-front:latest"
+      - "."
+
+  # GCRへのイメージのプッシュ
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - "push"
+      - "gcr.io/$PROJECT_ID/bgr5-front:latest"
+
+  # Cloud Runへのデプロイ
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: gcloud
+    args:
+      - "run"
+      - "deploy"
+      - "bgr5-front"
+      - "--image"
+      - "gcr.io/$PROJECT_ID/bgr5-front:latest"
+      - "--region"
+      - "asia-northeast1"
+      - "--platform"
+      - "managed"
+      - "--allow-unauthenticated"
+      - "--port"
+      - "3000"
+      - "--memory"
+      - "512Mi"
+      - "--min-instances"
+      - "0"
+      - "--max-instances"
+      - "2"
+      - "--set-env-vars"
+      - "NODE_ENV=production,NEXT_PUBLIC_API_URL=https://bgr5-api-games-y2i5irl3rq-an.a.run.app,NEXT_PUBLIC_BROWSER_API_URL=https://bgr5-api-games-y2i5irl3rq-an.a.run.app,NEXT_PUBLIC_USE_MOCK_DATA=false,NEXT_PUBLIC_API_DIRECT=true"
+      # 注意: 以下の環境変数はCloud Run Consoleで直接設定してください
+      # NEXT_PUBLIC_GOOGLE_CLIENT_ID, NEXT_PUBLIC_TWITTER_CLIENT_ID
+
+images:
+  - "gcr.io/$PROJECT_ID/bgr5-front:latest"
+
+timeout: "1800s"
