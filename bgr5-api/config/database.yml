@@ -3,32 +3,62 @@ default: &default
   adapter: postgresql
   encoding: unicode
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  username: <%= ENV.fetch("POSTGRES_USER") { "bgr5_user" } %>
-  password: <%= ENV.fetch("POSTGRES_PASSWORD") { "postgres" } %>
-  host: <%= ENV.fetch("DATABASE_HOST") { "35.200.15.8" } %>
-  port: <%= ENV.fetch("DATABASE_PORT") { 5432 } %>
+  timeout: 5000
+  variables:
+    statement_timeout: 5000
+    application_name: bgr5_api
+  # 接続エラー時に再接続を試みる
+  reconnect: true
 
 development:
   <<: *default
-  database: bgr5_development
+  url: <%= ENV['DATABASE_URL'] %>
+  # 開発環境のフォールバック設定
+  database: <%= ENV.fetch('DATABASE_NAME') { 'bgr5_development' } %>
+  username: <%= ENV.fetch('POSTGRES_USER') { 'postgres' } %>
+  password: <%= ENV.fetch('POSTGRES_PASSWORD') { 'postgres' } %>
+  host: <%= ENV.fetch('DATABASE_HOST') { 'localhost' } %>
+  port: <%= ENV.fetch('DATABASE_PORT') { 5432 } %>
 
 test:
   <<: *default
-  database: bgr5_test
+  url: <%= ENV['TEST_DATABASE_URL'] %>
+  # テスト環境のフォールバック設定
+  database: <%= ENV.fetch('TEST_DATABASE_NAME') { 'bgr5_test' } %>
+  username: <%= ENV.fetch('POSTGRES_USER') { 'postgres' } %>
+  password: <%= ENV.fetch('POSTGRES_PASSWORD') { 'postgres' } %>
+  host: <%= ENV.fetch('DATABASE_HOST') { 'localhost' } %>
+  port: <%= ENV.fetch('DATABASE_PORT') { 5432 } %>
 
 production:
   <<: *default
   url: <%= ENV['DATABASE_URL'] %>
-  database: bgr5_production
-  username: <%= ENV.fetch("POSTGRES_USER") { "bgr5_user" } %>
-  password: <%= ENV.fetch("POSTGRES_PASSWORD") { "postgres" } %>
-  host: <%= ENV.fetch("DATABASE_HOST") { "35.200.15.8" } %>
-  port: <%= ENV.fetch("DATABASE_PORT") { 5432 } %>
+  # 本番環境のフォールバック設定
+  database: <%= ENV.fetch('DATABASE_NAME') { 'bgr5_production' } %>
+  username: <%= ENV.fetch('POSTGRES_USER') { 'postgres' } %>
+  password: <%= ENV.fetch('POSTGRES_PASSWORD') { 'postgres' } %>
+  host: <%= ENV.fetch('DATABASE_HOST') { '35.200.15.8' } %>
+  port: <%= ENV.fetch('DATABASE_PORT') { 5432 } %>
+  prepared_statements: false
+  application_name: bgr5_api_production
+  # 接続タイムアウトを延長
+  connect_timeout: 10
+  checkout_timeout: 10
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 10 } %>
+  # 接続リトライ
+  connect_retry: 3
+  connect_retry_interval: 0.5
+  variables:
+    statement_timeout: 15000 # 15秒
+    idle_in_transaction_session_timeout: 60000 # 60秒
+  # 接続のためのSSLモード
+  sslmode: <%= ENV.fetch("DB_SSL_MODE") { "prefer" } %>
 
 cable:
   <<: *default
   database: bgr5_production
-  username: <%= ENV.fetch("POSTGRES_USER") { "bgr5_user" } %>
+  username: <%= ENV.fetch("POSTGRES_USER") { "postgres" } %>
   password: <%= ENV.fetch("POSTGRES_PASSWORD") { "postgres" } %>
   host: <%= ENV.fetch("DATABASE_HOST") { "35.200.15.8" } %>
   port: <%= ENV.fetch("DATABASE_PORT") { 5432 } %>
+  sslmode: <%= ENV.fetch("DB_SSL_MODE") { "prefer" } %>

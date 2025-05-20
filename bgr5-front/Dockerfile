@@ -4,10 +4,10 @@ FROM node:20-alpine
 WORKDIR /app
 
 # 依存関係のファイルをコピー
-COPY package.json package-lock.json ./
+COPY package.json ./
 
 # 依存関係をインストール
-RUN npm ci
+RUN npm install
 
 # ソースコードをコピー
 COPY . .

@@ -2,8 +2,8 @@
 # check=error=true
 
 # This Dockerfile is designed for production, not development. Use with Kamal or build'n'run by hand:
-# docker build -t bgr4_api .
-# docker run -d -p 80:80 -e RAILS_MASTER_KEY=<value from config/master.key> --name bgr4_api bgr4_api
+# docker build -t bgr5_api .
+# docker run -d -p 8080:8080 -e RAILS_MASTER_KEY=<value from config/master.key> --name bgr5_api bgr5_api
 
 # For a containerized dev environment, see Dev Containers: https://guides.rubyonrails.org/getting_started_with_devcontainer.html
 
@@ -14,62 +14,98 @@ FROM docker.io/library/ruby:$RUBY_VERSION-slim AS base
 # Rails app lives here
 WORKDIR /rails
 
-# Install base packages
+# 必要なパッケージをインストール
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips postgresql-client && \
-    rm -rf /var/lib/apt/lists /var/cache/apt/archives
+    apt-get install --no-install-recommends -y \
+    curl \
+    libjemalloc2 \
+    libvips \
+    postgresql-client \
+    netcat-openbsd \
+    dnsutils \
+    iputils-ping \
+    telnet \
+    procps \
+    vim-tiny \
+    lsof \
+    htop \
+    sudo \
+    unzip \
+    && rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-# Set development environment
-ENV RAILS_ENV="development" \
+# jemallocをpreloadして性能向上
+ENV LD_PRELOAD="libjemalloc.so.2"
+
+# 環境変数の設定
+ENV RAILS_ENV="production" \
     BUNDLE_DEPLOYMENT="0" \
     BUNDLE_PATH="/usr/local/bundle" \
-    RAILS_LOG_TO_STDOUT="1"
+    RAILS_LOG_TO_STDOUT="1" \
+    RAILS_SERVE_STATIC_FILES="1" \
+    DATABASE_URL="postgres://postgres:postgres@35.200.15.8:5432/bgr5_production" \
+    DATABASE_HOST="35.200.15.8" \
+    DATABASE_PORT="5432" \
+    POSTGRES_USER="postgres" \
+    POSTGRES_PASSWORD="postgres" \
+    DATABASE_NAME="bgr5_production" \
+    MALLOC_ARENA_MAX=2 \
+    WEB_CONCURRENCY=2 \
+    RAILS_MAX_THREADS=10
 
-# Throw-away build stage to reduce size of final image
-FROM base AS build
-
-# Install packages needed to build gems
+# gemをインストールするステージ
+FROM base AS gems
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential git libpq-dev pkg-config && \
     rm -rf /var/lib/apt/lists /var/cache/apt/archives
 
-# Install application gems
-COPY Gemfile Gemfile.lock ./
-RUN bundle install && \
-    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git && \
-    bundle exec bootsnap precompile --gemfile
+COPY Gemfile ./
+# Gemfile.lockが存在しない場合は生成し、インストールする
+RUN bundle lock --no-color || true && \
+    bundle config set --local without 'development test' && \
+    bundle install && \
+    rm -rf ~/.bundle/ "${BUNDLE_PATH}"/ruby/*/cache "${BUNDLE_PATH}"/ruby/*/bundler/gems/*/.git
 
-# Copy application code
+# 開発時の高速化用にbootsnapをプリコンパイル
+FROM gems AS build
+RUN bundle exec bootsnap precompile --gemfile || true
+
+# アプリケーションをコピー
 COPY . .
 
-# Precompile bootsnap code for faster boot times
-RUN bundle exec bootsnap precompile app/ lib/
+# アプリケーションのコードをプリコンパイル
+RUN bundle exec bootsnap precompile app/ lib/ || true
 
-# Adjust binfiles to be executable on Linux
+# シェルスクリプトの準備
 RUN chmod +x bin/* && \
     sed -i "s/\r$//g" bin/* && \
     sed -i 's/ruby\.exe$/ruby/' bin/*
 
-# Final stage for app image
+# 最終的なイメージを作成
 FROM base
-
-# Copy built artifacts: gems, application
 COPY --from=build "${BUNDLE_PATH}" "${BUNDLE_PATH}"
 COPY --from=build /rails /rails
 
-# データベース接続待機スクリプトを追加
+# PostgreSQL待機スクリプトをコピー
 COPY ./bin/wait-for-postgres.sh /usr/bin/
 RUN chmod +x /usr/bin/wait-for-postgres.sh
 
-# Run and own only the runtime files as a non-root user for security
+# Rails特有の設定
+RUN mkdir -p /rails/tmp/pids && \
+    mkdir -p /rails/tmp/cache && \
+    mkdir -p /rails/log && \
+    touch /rails/log/production.log && \
+    chown -R 1000:1000 /rails/{log,tmp}
+
+# 非rootユーザーを作成
 RUN groupadd --system --gid 1000 rails && \
     useradd rails --uid 1000 --gid 1000 --create-home --shell /bin/bash && \
     chown -R rails:rails db log storage tmp
+
 USER 1000:1000
 
-# ENTRYPOINT設定
-ENTRYPOINT ["/rails/bin/docker-entrypoint"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
 
-# Start server
+ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 EXPOSE 8080
-CMD ["./bin/rails", "server", "-b", "0.0.0.0", "-p", "8080"]
+CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]

@@ -31,16 +31,16 @@ steps:
       - "3000"
       - "--memory"
       - "512Mi"
+      - "--cpu"
+      - "1"
       - "--min-instances"
       - "0"
       - "--max-instances"
       - "2"
       - "--set-env-vars"
-      - "NODE_ENV=production,NEXT_PUBLIC_API_URL=https://bgr5-api-games-y2i5irl3rq-an.a.run.app,NEXT_PUBLIC_BROWSER_API_URL=https://bgr5-api-games-y2i5irl3rq-an.a.run.app,NEXT_PUBLIC_USE_MOCK_DATA=false,NEXT_PUBLIC_API_DIRECT=true"
-      # 注意: 以下の環境変数はCloud Run Consoleで直接設定してください
-      # NEXT_PUBLIC_GOOGLE_CLIENT_ID, NEXT_PUBLIC_TWITTER_CLIENT_ID
+      - "NODE_ENV=production,NEXT_PUBLIC_API_URL=https://bgr5-api-y2i5irl3rq-an.a.run.app,NEXT_PUBLIC_BROWSER_API_URL=https://bgr5-api-y2i5irl3rq-an.a.run.app,NEXT_PUBLIC_USE_MOCK_DATA=false,NEXT_PUBLIC_API_DIRECT=true"
 
 images:
   - "gcr.io/$PROJECT_ID/bgr5-front:latest"
 
-timeout: "1800s"
+timeout: "1800s" 
