@@ -38,15 +38,11 @@ steps:
       - "push"
       - "gcr.io/$PROJECT_ID/bgr5-api:latest"
 
-  # ビルド後にキャッシュを保存
-  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
-    entrypoint: "bash"
+  # GCRへキャッシュイメージをプッシュ（キャッシュの保存方法を変更）
+  - name: "gcr.io/cloud-builders/docker"
     args:
-      - "-c"
-      - |
-        mkdir -p /tmp/bundler-cache
-        docker save gcr.io/$PROJECT_ID/bgr5-api-gems:latest | tar -xOf - | tar -C /tmp/bundler-cache -xf -
-        gsutil -m cp -r /tmp/bundler-cache gs://$PROJECT_ID-cache/bgr5-api/
+      - "push"
+      - "gcr.io/$PROJECT_ID/bgr5-api-gems:latest"
 
   # Cloud Runへのデプロイ
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
