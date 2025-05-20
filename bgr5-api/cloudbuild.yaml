@@ -87,16 +87,6 @@ steps:
       - "/rails/bin/docker-entrypoint"
       - "--args"
       - "bundle,exec,puma,-C,config/puma.rb"
-      - "--health-checks"
-      - "http://:8080/health"
-      - "--health-checks-initial-delay"
-      - "120s"
-      - "--health-checks-timeout"
-      - "5s"
-      - "--health-checks-interval"
-      - "30s"
-      - "--health-checks-failure-threshold"
-      - "3"
 
 images:
   - "gcr.io/$PROJECT_ID/bgr5-api-gems:latest"
