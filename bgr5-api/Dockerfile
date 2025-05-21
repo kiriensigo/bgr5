@@ -42,15 +42,9 @@ ENV RAILS_ENV="production" \
     BUNDLE_PATH="/usr/local/bundle" \
     RAILS_LOG_TO_STDOUT="1" \
     RAILS_SERVE_STATIC_FILES="1" \
-    DATABASE_URL="postgres://postgres:postgres@35.200.15.8:5432/bgr5_production" \
-    DATABASE_HOST="35.200.15.8" \
-    DATABASE_PORT="5432" \
-    POSTGRES_USER="postgres" \
-    POSTGRES_PASSWORD="postgres" \
-    DATABASE_NAME="bgr5_production" \
     MALLOC_ARENA_MAX=2 \
-    WEB_CONCURRENCY=2 \
-    RAILS_MAX_THREADS=10
+    WEB_CONCURRENCY=1 \
+    RAILS_MAX_THREADS=5
 
 # gemをインストールするステージ
 FROM base AS gems
@@ -106,4 +100,4 @@ USER 1000:1000
 
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 EXPOSE 8080
-CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "8080"]

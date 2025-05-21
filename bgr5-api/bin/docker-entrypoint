@@ -2,21 +2,31 @@
 
 set -e
 
-# システム情報を簡素化
-echo "Starting application in $RAILS_ENV environment"
+# デバッグモードを有効化
+set -x
 
-# 最低限の環境変数チェック
-if [ "$RAILS_ENV" = "production" ] && [ -z "$DATABASE_URL" ]; then
-  export DATABASE_URL="postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@${DATABASE_HOST:-localhost}:${DATABASE_PORT:-5432}/${DATABASE_NAME:-bgr5_production}"
-  echo "Set DATABASE_URL to $DATABASE_URL"
-fi
+# システム情報表示
+echo "========== システム情報 =========="
+echo "環境: $RAILS_ENV"
+echo "Rubyバージョン: $(ruby -v)"
+echo "現在のディレクトリ: $(pwd)"
+echo "ファイル一覧:"
+ls -la
+echo "=================================="
 
-# 必要なディレクトリの作成
-if [ -d "/rails" ]; then
-  mkdir -p /rails/tmp/pids
-  mkdir -p /rails/tmp/cache
-  touch /rails/log/${RAILS_ENV}.log
-fi
+# 環境変数表示
+echo "========== 環境変数 =========="
+echo "PORT: ${PORT:-8080}"
+echo "DATABASE_URL: ${DATABASE_URL:-未設定}"
+echo "=================================="
 
-echo "Launching Rails application server..."
+# ディレクトリ作成
+mkdir -p tmp/pids
+mkdir -p tmp/cache
+mkdir -p log
+
+# アプリケーション起動
+echo "アプリケーションを起動します..."
+
+# コマンドを実行
 exec "$@" 
