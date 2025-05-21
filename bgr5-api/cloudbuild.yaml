@@ -54,7 +54,6 @@ steps:
       - "--set-env-vars=MALLOC_ARENA_MAX=2"
       - "--set-env-vars=WEB_CONCURRENCY=1"
       - "--set-env-vars=RAILS_MAX_THREADS=5"
-      - "--set-env-vars=PORT=8080"
 
 # イメージ一覧
 images:
