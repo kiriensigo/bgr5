@@ -69,9 +69,9 @@ steps:
       - "--max-instances"
       - "2"
       - "--timeout"
-      - "300s"
+      - "600s"
       - "--set-env-vars"
-      - "RAILS_ENV=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,DATABASE_URL=postgres://postgres:postgres@35.200.15.8:5432/bgr5_production,DATABASE_HOST=35.200.15.8,DATABASE_PORT=5432,POSTGRES_USER=postgres,POSTGRES_PASSWORD=postgres,DATABASE_NAME=bgr5_production,DB_SKIP_WAIT=false,DEBUG=true,CORS_ORIGINS=https://bgr5-front-y2i5irl3rq-an.a.run.app,MALLOC_ARENA_MAX=2,WEB_CONCURRENCY=2,RAILS_MAX_THREADS=10"
+      - "RAILS_ENV=production,RAILS_LOG_TO_STDOUT=true,RAILS_SERVE_STATIC_FILES=true,DATABASE_URL=postgres://postgres:postgres@35.200.15.8:5432/bgr5_production,DATABASE_HOST=35.200.15.8,DATABASE_PORT=5432,POSTGRES_USER=postgres,POSTGRES_PASSWORD=postgres,DATABASE_NAME=bgr5_production,DB_SKIP_WAIT=true,DEBUG=true,CORS_ORIGINS=https://bgr5-front-y2i5irl3rq-an.a.run.app,MALLOC_ARENA_MAX=2,WEB_CONCURRENCY=1,RAILS_MAX_THREADS=5"
       - "--set-cloudsql-instances"
       - "bgr4-project:asia-northeast1:bgr5-db"
       - "--execution-environment"
@@ -80,7 +80,7 @@ steps:
       - "--command"
       - "/rails/bin/docker-entrypoint"
       - "--args"
-      - "bundle,exec,puma,-C,config/puma.rb"
+      - "bundle,exec,puma,-C,config/puma.rb,-w,1,-t,5:5"
 
 images:
   - "gcr.io/$PROJECT_ID/bgr5-api-gems:latest"
