@@ -81,8 +81,6 @@ steps:
       - "--service-account"
       - "349403738734-compute@developer.gserviceaccount.com"
       - "--cpu-boost"
-      - "--add-cloudsql-instances"
-      - "bgr4-project:asia-northeast1:bgr5-db"
       - "--command"
       - "/rails/bin/docker-entrypoint"
       - "--args"
