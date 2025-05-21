@@ -2,125 +2,20 @@
 
 set -e
 
-# デバッグモードを有効にする
-if [ "$DEBUG" = "true" ]; then
-  set -x
-fi
+# システム情報を簡素化
+echo "Starting application in $RAILS_ENV environment"
 
-# システム情報
-echo "System Information:"
-echo "-----------------"
-uname -a
-id
-echo "-----------------"
-
-# 環境変数をデバッグのために出力
-echo "Starting application with the following environment:"
-echo "RAILS_ENV: $RAILS_ENV"
-echo "DATABASE_URL: ${DATABASE_URL:-not set}"
-echo "DATABASE_HOST: ${DATABASE_HOST:-not set}"
-echo "DATABASE_PORT: ${DATABASE_PORT:-not set}"
-echo "DATABASE_NAME: ${DATABASE_NAME:-not set}"
-echo "POSTGRES_USER: ${POSTGRES_USER:-not set}"
-echo "POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-not set (shown as placeholder)}"
-echo "DB_SKIP_WAIT: ${DB_SKIP_WAIT:-false}"
-echo "CORS_ORIGINS: ${CORS_ORIGINS:-not set}"
-echo "RAILS_LOG_TO_STDOUT: ${RAILS_LOG_TO_STDOUT:-not set}"
-echo "RAILS_SERVE_STATIC_FILES: ${RAILS_SERVE_STATIC_FILES:-not set}"
-echo "PATH: $PATH"
-
-# DATABASE_URLが設定されていない場合は、他の環境変数から作成
+# 最低限の環境変数チェック
 if [ "$RAILS_ENV" = "production" ] && [ -z "$DATABASE_URL" ]; then
   export DATABASE_URL="postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@${DATABASE_HOST:-localhost}:${DATABASE_PORT:-5432}/${DATABASE_NAME:-bgr5_production}"
   echo "Set DATABASE_URL to $DATABASE_URL"
 fi
 
-# DATABASE_NAMEが設定されていないが、DATABASE_URLがある場合は抽出
-if [ -z "$DATABASE_NAME" ] && [ -n "$DATABASE_URL" ]; then
-  export DATABASE_NAME=$(echo $DATABASE_URL | sed -E 's/.*\/([^?]*).*/\1/')
-  echo "Extracted DATABASE_NAME from DATABASE_URL: $DATABASE_NAME"
-fi
-
-# ネットワーク診断を実行
-echo "Network diagnostics:"
-echo "-------------------"
-echo "Testing connectivity to database host:"
-if [ -n "${DATABASE_HOST}" ]; then
-  ping -c 2 "${DATABASE_HOST}" || echo "Cannot ping database host - this might be normal due to firewall settings"
-  nc -zvw3 "${DATABASE_HOST}" "${DATABASE_PORT:-5432}" || echo "Cannot connect to database port - check if database is running and accessible"
-fi
-
-echo "Checking DNS:"
-nslookup google.com || echo "DNS resolution failed"
-echo "-------------------"
-
-# データベース待機をスキップするフラグ
-if [ "${DB_SKIP_WAIT:-false}" != "true" ]; then
-  # PostgreSQLが利用可能になるまで待機
-  if [ "$RAILS_ENV" = "production" ] || [ "$RAILS_ENV" = "staging" ]; then
-    echo "Waiting for PostgreSQL to become available..."
-    
-    # 接続診断情報を表示
-    echo "Attempting to connect to: ${DATABASE_HOST:-localhost}:${DATABASE_PORT:-5432}"
-    echo "User: ${POSTGRES_USER:-postgres}"
-    echo "Database: ${DATABASE_NAME:-bgr5_production}"
-    
-    # PostgreSQLが応答するのを待つ
-    /usr/bin/wait-for-postgres.sh "${DATABASE_HOST:-localhost}" "${DATABASE_PORT:-5432}" "${POSTGRES_USER:-postgres}" "${POSTGRES_PASSWORD:-postgres}" "${DATABASE_NAME:-bgr5_production}" || {
-      echo "Failed to connect to PostgreSQL. Continuing anyway..."
-    }
-    
-    # データベースが存在するか確認し、存在しない場合は作成を試みる
-    if ! PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql -h "${DATABASE_HOST:-localhost}" -p "${DATABASE_PORT:-5432}" -U "${POSTGRES_USER:-postgres}" -lqt | cut -d \| -f 1 | grep -qw "${DATABASE_NAME:-bgr5_production}"; then
-      echo "Database ${DATABASE_NAME:-bgr5_production} does not exist. Attempting to create..."
-      PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql -h "${DATABASE_HOST:-localhost}" -p "${DATABASE_PORT:-5432}" -U "${POSTGRES_USER:-postgres}" -c "CREATE DATABASE \"${DATABASE_NAME:-bgr5_production}\";" || echo "Failed to create database. Continuing anyway..."
-    else
-      echo "Database ${DATABASE_NAME:-bgr5_production} exists."
-    fi
-  fi
-else
-  echo "Skipping database wait as requested by DB_SKIP_WAIT=true"
-fi
-
-# Railsが接続できるかテスト
-echo "Testing Rails database connection:"
-bundle exec rails runner "
-begin
-  puts ActiveRecord::Base.connection_config.inspect
-  puts ActiveRecord::Base.connection.execute('SELECT 1').inspect
-  puts 'Rails database connection successful!'
-rescue => e
-  puts 'Rails database connection failed: ' + e.message
-  puts e.backtrace
-end
-" || echo "Rails database connection test failed, but continuing..."
-
-# 本番環境の場合はマイグレーションを実行
-if [ "$RAILS_ENV" = "production" ] || [ "$RAILS_ENV" = "staging" ]; then
-  echo "Running database migrations..."
-  bundle exec rails db:migrate 2>&1 || echo "Migration failed, but continuing..."
-  
-  # アセットのプリコンパイル（APIモードでは通常不要だが、念のため）
-  if [ -d "app/assets" ]; then
-    echo "Precompiling assets..."
-    bundle exec rails assets:precompile 2>&1 || echo "Asset compilation failed, but continuing..."
-  fi
-  
-  # 基本的なデータベース接続テスト
-  echo "Testing database connection..."
-  bundle exec rails runner "begin; puts 'Database connection successful: ' + ActiveRecord::Base.connection.current_database; rescue => e; puts 'Database connection error: ' + e.message; end" || echo "Database connection test failed, but continuing..."
-  
-  # ルートをチェック
-  echo "Available routes:"
-  bundle exec rails routes 2>&1 || echo "Failed to list routes"
-fi
-
-# ファイルの所有権を確認
-if [ -d "/rails/tmp" ]; then
+# 必要なディレクトリの作成
+if [ -d "/rails" ]; then
   mkdir -p /rails/tmp/pids
   mkdir -p /rails/tmp/cache
   touch /rails/log/${RAILS_ENV}.log
-  echo "Created necessary directories and files"
 fi
 
 echo "Launching Rails application server..."

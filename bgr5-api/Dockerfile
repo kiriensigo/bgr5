@@ -94,7 +94,8 @@ RUN mkdir -p /rails/tmp/pids && \
     mkdir -p /rails/tmp/cache && \
     mkdir -p /rails/log && \
     touch /rails/log/production.log && \
-    chown -R 1000:1000 /rails/{log,tmp}
+    chown -R 1000:1000 /rails/log && \
+    chown -R 1000:1000 /rails/tmp
 
 # 非rootユーザーを作成
 RUN groupadd --system --gid 1000 rails && \
@@ -102,9 +103,6 @@ RUN groupadd --system --gid 1000 rails && \
     chown -R rails:rails db log storage tmp
 
 USER 1000:1000
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["/rails/bin/docker-entrypoint"]
 EXPOSE 8080
