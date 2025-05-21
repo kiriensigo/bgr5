@@ -2,31 +2,60 @@
 
 set -e
 
-# デバッグモードを有効化
+# デバッグモードを有効化（より詳細な情報を表示）
 set -x
 
 # システム情報表示
-echo "========== システム情報 =========="
+echo "==================== システム情報 ===================="
 echo "環境: $RAILS_ENV"
 echo "Rubyバージョン: $(ruby -v)"
+echo "Rails環境: $RAILS_ENV"
 echo "現在のディレクトリ: $(pwd)"
-echo "ファイル一覧:"
+echo "プロセスID: $$"
+echo "日時: $(date)"
+
+# ファイル一覧確認
+echo "アプリケーションファイル一覧:"
 ls -la
-echo "=================================="
+echo "======================================================"
 
-# 環境変数表示
-echo "========== 環境変数 =========="
-echo "PORT: ${PORT:-8080}"
+# 環境変数確認
+echo "==================== 環境変数 ===================="
+echo "PORT: ${PORT:-8080} (デフォルト: 8080)"
 echo "DATABASE_URL: ${DATABASE_URL:-未設定}"
-echo "=================================="
+echo "RAILS_ENV: ${RAILS_ENV:-development}"
+echo "RAILS_LOG_TO_STDOUT: ${RAILS_LOG_TO_STDOUT:-false}"
+echo "======================================================"
 
-# ディレクトリ作成
+# ディレクトリ作成（存在しなければ）
+echo "必要なディレクトリを作成しています..."
 mkdir -p tmp/pids
 mkdir -p tmp/cache
 mkdir -p log
+chmod -R 755 tmp
+chmod -R 755 log
+
+# データベース接続の確認
+if [ -n "$DATABASE_URL" ]; then
+  echo "データベース接続を確認しています..."
+  # データベース接続を確認（5回までリトライ）
+  retries=5
+  while [ $retries -gt 0 ]; do
+    if bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" 2>/dev/null; then
+      echo "データベース接続を確認しました"
+      break
+    else
+      echo "データベースへの接続に失敗しました。残りリトライ回数: $retries"
+      retries=$((retries - 1))
+      sleep 3
+    fi
+  done
+fi
 
 # アプリケーション起動
-echo "アプリケーションを起動します..."
+echo "==================== アプリケーション起動 ===================="
+echo "コマンド: $@"
+echo "=========================================================="
 
 # コマンドを実行
 exec "$@" 
