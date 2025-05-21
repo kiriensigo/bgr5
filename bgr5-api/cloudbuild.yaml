@@ -76,8 +76,6 @@ steps:
       - "bgr4-project:asia-northeast1:bgr5-db"
       - "--execution-environment"
       - "gen2"
-      - "--service-account"
-      - "349403738734-compute@developer.gserviceaccount.com"
       - "--cpu-boost"
       - "--command"
       - "/rails/bin/docker-entrypoint"
