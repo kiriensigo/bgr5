@@ -13,6 +13,17 @@ echo "Rails環境: $RAILS_ENV"
 echo "現在のディレクトリ: $(pwd)"
 echo "プロセスID: $$"
 echo "日時: $(date)"
+echo "ホスト名: $(hostname)"
+echo "IPアドレス: $(hostname -I || echo '取得できません')"
+
+# ネットワーク情報
+echo "==================== ネットワーク情報 ===================="
+echo "DNSサーバー:"
+cat /etc/resolv.conf
+echo "ネットワークインターフェース:"
+ip addr || echo "ip command not available"
+echo "ルーティングテーブル:"
+ip route || echo "ip command not available"
 
 # ファイル一覧確認
 echo "アプリケーションファイル一覧:"
@@ -50,6 +61,52 @@ if [ -n "$DATABASE_URL" ]; then
       sleep 3
     fi
   done
+  
+  if [ $retries -eq 0 ]; then
+    echo "データベース接続の確認に失敗しました。データベース情報:"
+    echo "DATABASE_URL: ${DATABASE_URL}"
+    # データベースホストに対してpingを試みる
+    DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\).*/\1/p')
+    if [ -n "$DB_HOST" ]; then
+      echo "データベースホスト($DB_HOST)へのPing:"
+      ping -c 3 $DB_HOST || echo "Pingに失敗しました"
+    fi
+  fi
+fi
+
+# PORT環境変数を確認し、必要に応じて置き換え
+if [ -n "$PORT" ]; then
+  echo "PORT環境変数が設定されています: $PORT"
+  # コマンドライン引数をチェック
+  if [[ "$*" == *"rails server"* || "$*" == *"rails s"* ]]; then
+    echo "Railsサーバーコマンドを検出しました。PORT環境変数を使用します。"
+    # "-p"オプションを置き換え
+    ARGS=()
+    SKIP_NEXT=false
+    for ARG in "$@"; do
+      if $SKIP_NEXT; then
+        SKIP_NEXT=false
+        continue
+      elif [ "$ARG" = "-p" ]; then
+        ARGS+=("-p" "$PORT")
+        SKIP_NEXT=true
+      elif [[ "$ARG" =~ ^-p([0-9]+)$ ]]; then
+        ARGS+=("-p$PORT")
+      else
+        ARGS+=("$ARG")
+      fi
+    done
+    
+    # "-p"オプションが含まれていなかった場合は追加
+    if [[ ! " ${ARGS[*]} " =~ " -p " ]] && [[ ! " ${ARGS[*]} " =~ "-p" ]]; then
+      ARGS+=("-p" "$PORT")
+    fi
+    
+    echo "実行コマンド: ${ARGS[*]}"
+    exec "${ARGS[@]}"
+  else
+    echo "Railsサーバー以外のコマンドが実行されます。元のコマンドを使用します。"
+  fi
 fi
 
 # アプリケーション起動
