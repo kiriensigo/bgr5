@@ -74,45 +74,21 @@ if [ -n "$DATABASE_URL" ]; then
   fi
 fi
 
-# PORT環境変数を確認し、必要に応じて置き換え
-if [ -n "$PORT" ]; then
-  echo "PORT環境変数が設定されています: $PORT"
-  # コマンドライン引数をチェック
-  if [[ "$*" == *"rails server"* || "$*" == *"rails s"* ]]; then
-    echo "Railsサーバーコマンドを検出しました。PORT環境変数を使用します。"
-    # "-p"オプションを置き換え
-    ARGS=()
-    SKIP_NEXT=false
-    for ARG in "$@"; do
-      if $SKIP_NEXT; then
-        SKIP_NEXT=false
-        continue
-      elif [ "$ARG" = "-p" ]; then
-        ARGS+=("-p" "$PORT")
-        SKIP_NEXT=true
-      elif [[ "$ARG" =~ ^-p([0-9]+)$ ]]; then
-        ARGS+=("-p$PORT")
-      else
-        ARGS+=("$ARG")
-      fi
-    done
-    
-    # "-p"オプションが含まれていなかった場合は追加
-    if [[ ! " ${ARGS[*]} " =~ " -p " ]] && [[ ! " ${ARGS[*]} " =~ "-p" ]]; then
-      ARGS+=("-p" "$PORT")
-    fi
-    
-    echo "実行コマンド: ${ARGS[*]}"
-    exec "${ARGS[@]}"
-  else
-    echo "Railsサーバー以外のコマンドが実行されます。元のコマンドを使用します。"
-  fi
-fi
+# Cloud Runのポート設定を確認 (デフォルトは8080)
+PORT="${PORT:-8080}"
+echo "使用するポート: $PORT"
 
 # アプリケーション起動
 echo "==================== アプリケーション起動 ===================="
-echo "コマンド: $@"
-echo "=========================================================="
+echo "元のコマンド: $@"
 
-# コマンドを実行
-exec "$@" 
+# 最終的なコマンドを構築
+if [[ "$*" == *"rails server"* || "$*" == *"rails s"* ]]; then
+  echo "Railsサーバーコマンドを検出しました"
+  echo "実行コマンド: bundle exec rails server -b 0.0.0.0 -p $PORT"
+  exec bundle exec rails server -b 0.0.0.0 -p $PORT
+else
+  # その他のコマンドはそのまま実行
+  echo "実行コマンド: $@"
+  exec "$@"
+fi 
