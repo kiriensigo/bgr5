@@ -26,10 +26,15 @@ echo "ルーティングテーブル:"
 ip route || echo "ip command not available"
 
 # ファイル一覧確認
+echo "==================== ファイル一覧 ===================="
 echo "アプリケーションファイル一覧:"
 ls -la
 echo "bin/ ディレクトリ:"
 ls -la bin/
+echo "config/ ディレクトリ:"
+ls -la config/
+echo "log/ ディレクトリ:"
+ls -la log/ 2>/dev/null || echo "log/ ディレクトリはまだ存在しません"
 echo "======================================================"
 
 # 環境変数確認
@@ -50,45 +55,73 @@ chmod -R 755 log
 touch log/${RAILS_ENV}.log
 chmod 644 log/${RAILS_ENV}.log
 
+echo "ログファイル作成完了: log/${RAILS_ENV}.log"
+ls -la log/
+
 # データベース接続の確認
 if [ -n "$DATABASE_URL" ]; then
-  echo "データベース接続を確認しています..."
-  # データベース接続を確認（5回までリトライ）
+  echo "==================== データベース接続確認 ===================="
+  echo "DATABASE_URL が設定されています: ${DATABASE_URL}"
+  
+  # データベース接続を確認（10回までリトライ）
   retries=10
-  while [ $retries -gt 0 ]; do
-    if bundle exec rails runner "begin; ActiveRecord::Base.connection.execute('SELECT 1'); puts 'データベース接続成功！'; rescue => e; puts \"データベース接続エラー: #{e.message}\"; exit(1); end" 2>/dev/null; then
-      echo "データベース接続を確認しました"
+  counter=1
+  
+  while [ $counter -le $retries ]; do
+    echo "データベース接続試行: $counter/$retries"
+    
+    if bundle exec rails runner "begin; puts '接続試行中...'; ActiveRecord::Base.connection.execute('SELECT 1'); puts '✓ データベース接続成功！'; rescue => e; puts \"✗ データベース接続エラー: #{e.message}\"; exit(1); end" 2>/dev/null; then
+      echo "✓ データベース接続を確認しました"
       break
     else
-      echo "データベースへの接続に失敗しました。残りリトライ回数: $retries"
-      retries=$((retries - 1))
-      sleep 5
+      echo "✗ データベースへの接続に失敗しました。残りリトライ回数: $((retries - counter))"
+      
+      # データベースホスト情報を抽出
+      DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\).*/\1/p')
+      DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+      
+      if [ -n "$DB_HOST" ]; then
+        echo "データベースホスト: $DB_HOST"
+        echo "データベースポート: ${DB_PORT:-5432}"
+        
+        # pingでホスト到達性確認
+        echo "ホスト到達性テスト:"
+        ping -c 2 $DB_HOST || echo "✗ ホストに到達できません"
+        
+        # ポート接続テスト
+        if [ -n "$DB_PORT" ]; then
+          echo "ポート接続テスト:"
+          nc -zv $DB_HOST $DB_PORT -w 5 || echo "✗ ポート$DB_PORTに接続できません"
+        fi
+      fi
+      
+      counter=$((counter + 1))
+      
+      if [ $counter -le $retries ]; then
+        echo "5秒待機後に再試行します..."
+        sleep 5
+      fi
     fi
   done
   
-  if [ $retries -eq 0 ]; then
-    echo "データベース接続の確認に失敗しました。データベース情報:"
-    echo "DATABASE_URL: ${DATABASE_URL}"
-    # データベースホストに対してpingを試みる
-    DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\).*/\1/p')
-    if [ -n "$DB_HOST" ]; then
-      echo "データベースホスト($DB_HOST)へのPing:"
-      ping -c 3 $DB_HOST || echo "Pingに失敗しました"
-      
-      echo "ポート接続テスト:"
-      DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
-      if [ -n "$DB_PORT" ]; then
-        nc -zv $DB_HOST $DB_PORT -w 5 || echo "ポート接続に失敗しました"
-      fi
-    fi
-    
+  if [ $counter -gt $retries ]; then
+    echo "⚠️ 警告: $retries回の試行後もデータベース接続に失敗しました"
+    echo "ホスト情報: $(echo $DATABASE_URL | sed -n 's/.*@\([^/]*\).*/\1/p')"
     echo "警告: データベース接続に失敗しましたが、アプリケーションの起動を続行します"
+  else
+    echo "✓ データベース接続確認完了（$counter回目で成功）"
   fi
+  
+  echo "======================================================"
+else
+  echo "⚠️ DATABASE_URL が設定されていません。データベース接続をスキップします。"
 fi
 
 # Cloud Runのポート設定を確認 (デフォルトは8080)
 PORT="${PORT:-8080}"
+echo "==================== ポート設定 ===================="
 echo "使用するポート: $PORT"
+echo "======================================================"
 
 # アプリケーション起動
 echo "==================== アプリケーション起動 ===================="

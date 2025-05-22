@@ -39,8 +39,9 @@ before_fork do
 end
 
 # 初期化ログ
-puts "Puma設定:"
+puts "===== Puma設定情報 ====="
 puts "環境: #{ENV.fetch("RAILS_ENV", "development")}"
-puts "ポート: #{ENV.fetch("PORT", 8080)}"
+puts "ポート: #{ENV.fetch("PORT", 8080)} (Cloud Run環境ではこのポートが使用されます)"
 puts "スレッド: #{min_threads_count}..#{max_threads_count}"
-puts "ワーカー: #{ENV.fetch("WEB_CONCURRENCY", 1)}" 
+puts "ワーカー: #{ENV.fetch("WEB_CONCURRENCY", 1)}"
+puts "======================= 
