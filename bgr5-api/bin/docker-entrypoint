@@ -28,6 +28,8 @@ ip route || echo "ip command not available"
 # ファイル一覧確認
 echo "アプリケーションファイル一覧:"
 ls -la
+echo "bin/ ディレクトリ:"
+ls -la bin/
 echo "======================================================"
 
 # 環境変数確認
@@ -45,20 +47,22 @@ mkdir -p tmp/cache
 mkdir -p log
 chmod -R 755 tmp
 chmod -R 755 log
+touch log/${RAILS_ENV}.log
+chmod 644 log/${RAILS_ENV}.log
 
 # データベース接続の確認
 if [ -n "$DATABASE_URL" ]; then
   echo "データベース接続を確認しています..."
   # データベース接続を確認（5回までリトライ）
-  retries=5
+  retries=10
   while [ $retries -gt 0 ]; do
-    if bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" 2>/dev/null; then
+    if bundle exec rails runner "begin; ActiveRecord::Base.connection.execute('SELECT 1'); puts 'データベース接続成功！'; rescue => e; puts \"データベース接続エラー: #{e.message}\"; exit(1); end" 2>/dev/null; then
       echo "データベース接続を確認しました"
       break
     else
       echo "データベースへの接続に失敗しました。残りリトライ回数: $retries"
       retries=$((retries - 1))
-      sleep 3
+      sleep 5
     fi
   done
   
@@ -70,7 +74,15 @@ if [ -n "$DATABASE_URL" ]; then
     if [ -n "$DB_HOST" ]; then
       echo "データベースホスト($DB_HOST)へのPing:"
       ping -c 3 $DB_HOST || echo "Pingに失敗しました"
+      
+      echo "ポート接続テスト:"
+      DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+      if [ -n "$DB_PORT" ]; then
+        nc -zv $DB_HOST $DB_PORT -w 5 || echo "ポート接続に失敗しました"
+      fi
     fi
+    
+    echo "警告: データベース接続に失敗しましたが、アプリケーションの起動を続行します"
   fi
 fi
 
